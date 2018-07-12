@@ -26,151 +26,209 @@ import java.util.*;
  * blocks until new percepts are available!
  * (Also, queued and notifications should be disabled)
  */
-public class Scheduler implements AgentListener, EnvironmentListener{
+public class Scheduler implements AgentListener, EnvironmentListener
+{
 
-    /**
-     * Holds configured agent data.
-     */
-    private class AgentConf {
-        String name;
-        String entity;
-        String team;
-        String className;
+	private int stepNumber;
 
-        AgentConf(String name, String entity, String team, String className){
-            this.name = name;
-            this.entity = entity;
-            this.team = team;
-            this.className = className;
-        }
-    }
+	public void setStepNumber(int sn)
+	{
+		stepNumber = sn;
+	}
 
-    private EnvironmentInterface eis;
-    private List<AgentConf> agentConfigurations = new Vector<>();
-    private Map<String, Agent> agents = new HashMap<>();
+	public int getStepNumber()
+	{
+		return stepNumber;
+	}
 
-    /**
-     * Create a new scheduler based on the given configuration file
-     * @param path path to a java agents configuration file
-     */
-    Scheduler(String path) {
-        parseConfig(path);
-    }
+	/**
+	 * Holds configured agent data.
+	 */
+	private class AgentConf
+	{
+		String	name;
+		String	entity;
+		String	team;
+		String	className;
 
-    /**
-     * Parses the java agents config.
-     * @param path the path to the config
-     */
-    private void parseConfig(String path) {
-        try {
-            JSONObject config = new JSONObject(new String(Files.readAllBytes(Paths.get(path, "javaagentsconfig.json"))));
-            JSONObject agents = config.optJSONObject("agents");
-            if(agents != null){
-                agents.keySet().forEach(agName -> {
-                    JSONObject agConf = agents.getJSONObject(agName);
-                    agentConfigurations.add(new AgentConf(agName, agConf.getString("entity"), agConf.getString("team"),
-                                                          agConf.getString("class")));
-                });
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+		AgentConf(String name, String entity, String team, String className)
+		{
+			this.name = name;
+			this.entity = entity;
+			this.team = team;
+			this.className = className;
+		}
+	}
 
-    /**
-     * Connects to an Environment Interface
-     * @param ei the interface to connect to
-     */
-    void setEnvironment(EnvironmentInterface ei) {
-        this.eis = ei;
-        MailService mailService = new MailService();
-        for (AgentConf agentConf: agentConfigurations) {
+	private EnvironmentInterface	eis;
+	private List<AgentConf>			agentConfigurations	= new Vector<>();
+	private Map<String, Agent>		agents				= new HashMap<>();
 
-            Agent agent = null;
-            switch(agentConf.className){
-                case "BasicAgent":
-                    agent = new BasicAgent(agentConf.name, mailService);
-                    break;
-                case "WarpAgent":
-                    agent = new WarpAgent(agentConf.name, mailService);
-                    break;
-                case "DummyAgent":
-                    agent = new DummyAgent(agentConf.name, mailService);
-                    break;
-                // [add further types here]
-                default:
-                    System.out.println("Unknown agent type/class " + agentConf.className);
-            }
-            if(agent == null) continue;
+	/**
+	 * Create a new scheduler based on the given configuration file
+	 *
+	 * @param path
+	 *            path to a java agents configuration file
+	 */
+	Scheduler(String path)
+	{
+		parseConfig(path);
+	}
 
-            mailService.registerAgent(agent, agentConf.team);
+	/**
+	 * Parses the java agents config.
+	 *
+	 * @param path
+	 *            the path to the config
+	 */
+	private void parseConfig(String path)
+	{
+		try
+		{
+			JSONObject config = new JSONObject(new String(Files.readAllBytes(Paths.get(path, "javaagentsconfig.json"))));
+			JSONObject agents = config.optJSONObject("agents");
+			if (agents != null)
+			{
+				agents.keySet().forEach(agName -> {
+					JSONObject agConf = agents.getJSONObject(agName);
+					agentConfigurations.add(new AgentConf(agName, agConf.getString("entity"), agConf.getString("team"),
+						agConf.getString("class")));
+				});
+			}
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
 
-            try {
-                ei.registerAgent(agent.getName());
-            } catch (AgentException e) {
-                e.printStackTrace();
-            }
+	/**
+	 * Connects to an Environment Interface
+	 *
+	 * @param ei
+	 *            the interface to connect to
+	 */
+	void setEnvironment(EnvironmentInterface ei)
+	{
+		this.eis = ei;
+		MailService mailService = new MailService();
+		for (AgentConf agentConf : agentConfigurations)
+		{
 
-            try {
-                ei.associateEntity(agent.getName(), agentConf.entity);
-                System.out.println("associated agent \"" + agent.getName() + "\" with entity \"" + agentConf.entity + "\"");
-            } catch (RelationException e) {
-                e.printStackTrace();
-            }
+			Agent agent = null;
+			switch (agentConf.className)
+			{
+				case "BasicAgent":
+					agent = new BasicAgent(agentConf.name, mailService);
+					break;
+				case "WarpAgent":
+					agent = new WarpAgent(agentConf.name, mailService);
+					break;
+				case "DummyAgent":
+					agent = new DummyAgent(agentConf.name, mailService);
+					break;
+				// [add further types here]
+				default:
+					System.out.println("Unknown agent type/class " + agentConf.className);
+			}
+			if (agent == null)
+				continue;
 
-            ei.attachAgentListener(agent.getName(), this);
-            agents.put(agentConf.name, agent);
-        }
-        ei.attachEnvironmentListener(this);
-    }
+			mailService.registerAgent(agent, agentConf.team);
 
-    /**
-     * Steps all agents and relevant infrastructure.
-     */
-    void step() {
-        // retrieve percepts for all agents
-        List<Agent> newPerceptAgents = new Vector<>();
-        agents.values().forEach(ag -> {
-            List<Percept> percepts = new Vector<>();
-            try {
-                eis.getAllPercepts(ag.getName()).values().forEach(percepts::addAll);
-                newPerceptAgents.add(ag);
-            } catch (PerceiveException e) {
-//                System.out.println("No percepts for " + ag.getName());
-            }
-            ag.setPercepts(percepts);
-        });
+			try
+			{
+				ei.registerAgent(agent.getName());
+			}
+			catch (AgentException e)
+			{
+				e.printStackTrace();
+			}
 
-        // step all agents which have new percepts
-        newPerceptAgents.forEach(agent -> {
-            eis.iilang.Action action = agent.step();
-            try {
-                eis.performAction(agent.getName(), action);
-            } catch (ActException e) {
-                if(action != null)
-                    System.out.println("Could not perform action " + action.getName() + " for " + agent.getName());
-            }
-        });
+			try
+			{
+				ei.associateEntity(agent.getName(), agentConf.entity);
+				System.out.println("associated agent \"" + agent.getName() + "\" with entity \"" + agentConf.entity + "\"");
+			}
+			catch (RelationException e)
+			{
+				e.printStackTrace();
+			}
 
-        if(newPerceptAgents.size() == 0) try {
-            Thread.sleep(1000); // wait a bit in case no agents have been executed
-        } catch (InterruptedException ignored) {}
-    }
+			ei.attachAgentListener(agent.getName(), this);
+			agents.put(agentConf.name, agent);
+		}
+		ei.attachEnvironmentListener(this);
+	}
 
-    @Override
-    public void handlePercept(String agent, Percept percept) {
-        agents.get(agent).handlePercept(percept);
-    }
+	/**
+	 * Steps all agents and relevant infrastructure.
+	 */
+	void step()
+	{
+		// retrieve percepts for all agents
+		List<Agent> newPerceptAgents = new Vector<>();
+		agents.values().forEach(ag -> {
+			ag.setStepNumber(stepNumber);
+			List<Percept> percepts = new Vector<>();
+			try
+			{
+				eis.getAllPercepts(ag.getName()).values().forEach(percepts::addAll);
+				newPerceptAgents.add(ag);
+			}
+			catch (PerceiveException e)
+			{
+				// System.out.println("No percepts for " + ag.getName());
+			}
+			ag.setPercepts(percepts);
+		});
 
-    @Override
-    public void handleStateChange(EnvironmentState newState) {}
+		// step all agents which have new percepts
+		newPerceptAgents.forEach(agent -> {
+			eis.iilang.Action action = agent.step();
+			try
+			{
+				eis.performAction(agent.getName(), action);
+			}
+			catch (ActException e)
+			{
+				if (action != null)
+					System.out.println("Could not perform action " + action.getName() + " for " + agent.getName());
+			}
+		});
 
-    @Override
-    public void handleFreeEntity(String entity, Collection<String> agents) {}
+		if (newPerceptAgents.size() == 0)
+			try
+			{
+				Thread.sleep(1000); // wait a bit in case no agents have been executed
+			}
+			catch (InterruptedException ignored)
+			{}
+	}
 
-    @Override
-    public void handleDeletedEntity(String entity, Collection<String> agents) {}
+	@Override
+	public void handlePercept(String agent, Percept percept)
+	{
+		agents.get(agent).handlePercept(percept);
+	}
 
-    @Override
-    public void handleNewEntity(String entity) {}
+	@Override
+	public void handleStateChange(EnvironmentState newState)
+	{
+	}
+
+	@Override
+	public void handleFreeEntity(String entity, Collection<String> agents)
+	{
+	}
+
+	@Override
+	public void handleDeletedEntity(String entity, Collection<String> agents)
+	{
+	}
+
+	@Override
+	public void handleNewEntity(String entity)
+	{
+	}
 }
