@@ -216,10 +216,7 @@ public class DummyAgent extends Agent
 					{
 						return new Action("charge");
 					}
-					else
-					{
-						return new Action("goto", new Numeral(chargingTarget.lat), new Numeral(chargingTarget.lon));
-					}
+					return new Action("goto", new Numeral(chargingTarget.lat), new Numeral(chargingTarget.lon));
 				}
 			}
 		}

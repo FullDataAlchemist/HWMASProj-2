@@ -17,7 +17,7 @@ import massim.javaagents.percept.AgentPercepts;
 import massim.javaagents.percept.Pair;
 import massim.javaagents.percept.item;
 import massim.javaagents.percept.job;
-import massim.javaagents.percept.shop;
+import massim.javaagents.percept.Shop;
 import massim.javaagents.percept.storage;
 import massim.javaagents.percept.task;
 
@@ -159,14 +159,14 @@ public class PoNeyAgent extends Agent
 
 		if (AP.shopsByItem.get(itemName) != null)
 		{
-			for (shop next : AP.shopsByItem.get(itemName))
+			for (Shop next : AP.shopsByItem.get(itemName))
 			{
 				lat1 = next.getShopLat();
 				lon1 = next.getShopLon();
 				lat2 = AP.Storages.get(storage).getLat();
 				lon2 = AP.Storages.get(storage).getLon();
 				distance = Math.sqrt((lat1 - lat2) * (lat1 - lat2) + (lon1 - lon2) * (lon1 - lon2));
-				if (distance < minDistance && next.ShopItemsMap.get(itemName).getAmount() >= itemAmount)
+				if (distance < minDistance && next.shopItemsMap.get(itemName).getAmount() >= itemAmount)
 				{
 					minDistance = distance;
 					shop = next.getShopName();
@@ -196,7 +196,7 @@ public class PoNeyAgent extends Agent
 					break;
 
 				case "buy":
-					if (AP.getSelfRole().getLoad() - AP.getSelfInfo().getLoad() > AP.ItemsInEnv.get(selectedJobs.getTopItem()).getVolume())
+					if (AP.getSelfRole().getBaseLoad() - AP.getSelfInfo().getLoad() > AP.ItemsInEnv.get(selectedJobs.getTopItem()).getVolume())
 						candidate.add(selectedJobs);
 					break;
 			}
