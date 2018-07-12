@@ -20,6 +20,7 @@ public class job
 	private int							jobStart;
 	private int							jobEnd;
 	private boolean						isSimple;
+	private int							value;
 	private List<Pair<String, Integer>>	jobRequireds	= new Vector<>();
 
 	public job()

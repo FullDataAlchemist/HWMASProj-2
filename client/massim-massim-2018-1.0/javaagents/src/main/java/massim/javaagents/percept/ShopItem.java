@@ -7,13 +7,13 @@ package massim.javaagents.percept;
 
 /**
  *
- * @author Sarah
+ * @author poney
  */
 public class ShopItem
 {
-	int		Amount;
-	String	Name;
-	int		price;
+	private int		Amount;
+	private String	Name;
+	private int		price;
 
 	public ShopItem()
 	{
